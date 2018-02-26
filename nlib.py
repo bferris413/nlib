@@ -329,6 +329,10 @@ class memoize_persistent(object):
             self.storage[key] = value
         return value
 
+## Starting here
+## ## ## ## 
+## ## ## ## 
+## ## ## ## 
 def timef(f, ns=1000, dt = 60):
     import time
     t = t0 = time.time()
