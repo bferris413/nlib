@@ -1,7 +1,13 @@
+const pi = Math.PI;
+
+
+
+
+
 function timef(f, ns=1000, dt=60) {
     let t = Date.now();
     let t0 = t;
-    let k=1;
+    let k = 1;
     while (k <= ns) {
         f();
         t = Date.now();
@@ -78,7 +84,7 @@ class DisjointSets {
     }
 
     joined(i, j) { return this.parent(i) === this.parent(j); }
-    length() { return this.counter; }
+    get length() { return this.counter; }
 }
 
 // not implemented
@@ -117,21 +123,102 @@ function continuum_knapsack(a,b,c) {
 
 // skip to 719
 //
-function D(f, h=1e-6) {
+function D(f,h=1e-6) {
     return (x,F=f,H=h) => (F(x+H)-F(x-H))/2/H;
 }
 
-function DD(f, h=1e-6) {
-    return (x, F=f, H=h) => (F(x+H) - 2.0*F(x)+F(x-H))/(H*H);
+function DD(f,h=1e-6) {
+    return (x,F=f,H=h) => (F(x+H) - 2.0*F(x)+F(x-H))/(H*H);
 }
 
-function myexp(x, precision=1e-6, max_steps=40) {
-    if (x==0) { 
+function myexp(x,precision=1e-6,max_steps=40) {
+    if (x == 0) { 
         return 1.0; 
-    } else if (x>0) { 
-        return 1.0 / myexp(-x, precision, max_steps); 
+    } else if (x > 0) { 
+        return 1.0 / myexp(-x,precision,max_steps); 
     } else {
         let t = 1.0, s = 1.0;
+        for (let k=0; k < max_steps; k++) {
+            t = t * x/h;
+            s = s + t;
+            if (Math.abs(t) < precision) { return s; }
+        }
+        throw "No convergence";
+    }
+}
+
+function mysin(x,precision=1e-6,max_steps=40) {
+    if (x == 0) { 
+        return 0; 
+    } else if (x < 0) { 
+        return -mysin(-x); 
+    } else if (x > 2.0*pi) {
+       return mysin(x % (2.0*pi))
+    } else if (x > pi) {
+       return -mysin(2.0*pi - x);
+    } else if (x> pi/2) {
+       return mysin(pi-x);
+    } else if (x > pi/4) {
+       return sqrt(1.0-mysin(pi/2-x)**2)
+    } else {
+       let s = x, t=x;                   // first term
+       for (let k=1; k <= max_steps; k++) {
+           t = t*(-1.0)*x*x/(2*k)/(2*k+1)   // next term
+           s = s + t                 // add next term
+           r = x**(2*k+1)            // estimate residue
+           if (r < precision) { return s; } // stopping condition
+       }
+       throw "No convergence";
+}
+
+function mycos(x,precision=1e-6,max_steps=40) {
+    if (x == 0) {
+       return 1.0
+    } else if (x < 0) {
+       return mycos(-x);
+    } else if (x > 2.0*pi) {
+       return mycos(x % (2.0*pi));
+    } else if (x > pi) {
+       return mycos(2.0*pi - x);
+    } else if (x > pi/2) {
+       return -mycos(pi-x);
+    } else if (x > pi/4) {
+       return sqrt(1.0 - mycos(pi/2 - x)**2);
+    } else {
+       let s = 1, t = 1;                     // first term
+       for (let k=1; k <= max_steps; k++) {
+           t = t*(-1.0)*x*x/(2*k)/(2*k-1)   // next term
+           s = s + t                 // add next term
+           r = x**(2*k)              // estimate residue
+           if (r < precision) { return s; }  // stopping condition
+       }
+       throw "No convergence";
+    }
+}
+
+class Matrix {
+    constructor(rows, cols=1, fill=0.0) {
+       
+    /* 
+        Construct a zero matrix
+        Examples:
+        A = Matrix([[1,2],[3,4]])
+        A = Matrix([1,2,3,4])
+        A = Matrix(10,20)
+        A = Matrix(10,20,fill=0.0)
+        A = Matrix(10,20,fill=lambda r,c: 1.0 if r == c else 0.0) 
+    */
+        if (rows instanceof Array) {
+            if (rows[0] instanceof Array) {
+                this.rows = Array.from(rows);
+            } else {
+                this.rows = Array.from(rows, (ele) => [ele]);
+            }
+        } else if (typeof rows === 'number' && typeof cols === 'number') {
+            if (typeof fill === 'function') {
+                this.rows = Array.from()
+            }
+        }
 
     }
 }
