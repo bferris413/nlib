@@ -1,5 +1,6 @@
 const pi = Math.PI;
-
+let max = Math.max
+let abs = Math.abs
 
 
 
@@ -169,6 +170,7 @@ function mysin(x,precision=1e-6,max_steps=40) {
            if (r < precision) { return s; } // stopping condition
        }
        throw "No convergence";
+    }
 }
 
 function mycos(x,precision=1e-6,max_steps=40) {
@@ -216,9 +218,156 @@ class Matrix {
             }
         } else if (typeof rows === 'number' && typeof cols === 'number') {
             if (typeof fill === 'function') {
-                this.rows = Array.from()
+                // fill me in.
             }
         }
-
     }
+}
+
+// skip to 975
+function is_almost_symmetric(A, ap=1e-6, rp=1e-4) {
+    if (A.nrows != A.ncols) { 
+        return false; 
+    }
+    let delta = 0.0;
+    for (let r=0; r < A.nrows; r++) {
+        for (let c=0; c < r; c++) {
+            delta = abs(A[r][c] - A[c][r]);
+            if (delta > ap && delta > max(abs(A[r][c], abs(A[c][r]))) * rp) {
+                return false;
+            } 
+        }
+    }
+    return true;
+}
+
+function is_almost_zero(A, ap=1e-6, rp=1e-4) {
+    for (let r=0; r < A.nrows; r++) {
+        for (let c=0; c < A.ncols; c++) {
+            delta = abs(A[r][c] - A[c][r]);
+            if (delta > ap && delta > max(abs(A[r][c], abs(A[c][r]))) * rp) {
+                return false;
+            } 
+        }
+    }
+    return true;
+}
+
+// fix me
+function norm(A, p=1) {
+    if (A instanceof Array) {
+        return A.map(x => abs(x)**p)
+                .reduce((acc,v) => acc + v)**(1.0/p);
+    } else if (A instanceof Matrix) {
+        if (A.nrows ===1  || A.ncols === 1) {
+            
+        }
+    }
+}
+
+function condition_number(f, x=null, h=1e-6) {
+    if (typeof f === 'function' && x !== null) {
+        return D(f,h)(x) * x/f(x);
+    } else if (f instanceof Matrix) {
+        return norm(f) * norm(1/f);
+    } else {
+        throw "Not implemented";
+    }
+}
+
+// fix me
+function exp(x, ap=1e-6, rp=1e-4, ns=40) {
+    if (x instanceof Matrix) {
+        let t = Matrix.identity(x.ncols);
+        let s = t;
+        for (let i=1; i <= ns; i++) {
+            t = t*x / k;
+            s = s + t;
+            if (norm(t) < max(ap, norm(s) * rp)) { return s; }
+        }
+        throw "No convergence";
+    }
+    //else if ( /*complex numbers */) { }
+}
+
+function Cholesky(A) {
+    if (! is_almost_symmetric(A)) {
+        throw "Not symmetric";
+    }
+    let L = Object.assign({}, A);
+    for (let k=0; k < L.ncols; k++) {
+        if (L[k][k] <= 0) {
+            throw "Not positive definite";
+        }
+        L[k][k] = Math.sqrt(L[k][k]);
+        let p = L[k][k];
+        for (let i=k+1; i < L.nrows; i++) {
+            L[i][k] /= p;
+        }
+        for (let j=k+1; j < L.nrows; j++) {
+            p = L[j][k];
+            for (let i=k+1; i < L.nrows; i++) {
+                L[i][j] -= p * L[i][k];
+            }
+        }
+    }
+    for (let i=0; i < L.nrows; i++) {
+        for (let j=i+1; j < L.ncols; j++) {
+            L[i][j] = 0;
+        }
+    }
+    return L;
+}
+
+function is_positive_definite(A) {
+    if (! is_almost_symmetric(A)) {
+        return false;
+    }
+    try {
+        Cholesky(A);
+        return true;
+    } catch (err) {
+        return false;
+    }
+}
+
+// fix me
+function Markowitz(mu, A, r_free) {
+    // Assess Markowitz risk/return.
+    // Example:
+    // >>> cov = Matrix([[0.04, 0.006,0.02],
+    // ...               [0.006,0.09, 0.06],
+    // ...               [0.02, 0.06, 0.16]])
+    // >>> mu = Matrix([[0.10],[0.12],[0.15]])
+    // >>> r_free = 0.05
+    // >>> x, ret, risk = Markowitz(mu, cov, r_free)
+    // >>> print x
+    // [0.556634..., 0.275080..., 0.1682847...]
+    // >>> print ret, risk
+    // 0.113915... 0.186747...
+    // 
+    let x = Matrix(new Array(A.nrows).fill([0]));
+    x = (1/A) * (mu - r_free); // <--- rdiv(A, x)
+    x = x / (Array.from(new Array(x.nrows), (_,r) => x[r][0])
+                    .reduce((ac,v) => ac+v));
+
+    let portfolio = Array.from(new Array(x.nrows), (_,r) => x[r][0]);
+    let portfolio_return = mu * x;
+    let portfolio_risk = Math.sqrt(x * (A*x));
+    return [portfolio, portfolio_return, portfolio_risk];
+}
+
+function fit_least_squares(points, f) {
+
+    // Computes c_j for best linear fit of y[i] \pm dy[i] = fitting_f(x[i])
+    // where fitting_f(x[i]) is \sum_j c_j f[j](x[i])
+
+    // parameters:
+    // - a list of fitting functions
+    // - a list with points (x,y,dy)
+
+    // returns:
+    // - column vector with fitting coefficients
+    // - the chi2 for the fit
+    // - the fitting function as a lambda x: ....
 }
