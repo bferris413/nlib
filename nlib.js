@@ -370,4 +370,181 @@ function fit_least_squares(points, f) {
     // - column vector with fitting coefficients
     // - the chi2 for the fit
     // - the fitting function as a lambda x: ....
+
+    function eval_fitting_function(fs, c, x) {
+        if (fs.length === 1) {
+            return c * f[0](x);
+        } else {
+            // map index, ele to new array
+            // reduce
+            return Array.from(f, (func,i) => func(x)*c[i][0]).reduce((a,v) => a + v);
+        }
+    }
+
+    let A = new Matrix(points.length, f.length);
+    let b = new Matrix(points.length);
+
+    for (let i=0; i < A.nrows; i++) {
+        let weight = points[i] > 2 ? 1.0 / points : 1.0;
+        b[i][0] = weight * points[i][1];
+        for (let j=0; j < A.ncols; j++) {
+            A[i][j] = weight * f[j](points[i][0]);
+        }
+    }
+    let c = (1.0 / (A.T*A)) * (A.T*b);
+    let chi = A*c-b;
+    let chi2 = norm(chi, 2)**2;
+    let fitting_f = (x,C=c,F=f,q=eval_fitting_function) => q(f,c,x);
+    if (c instanceof Matrix) {
+        return [c.flatten(), chi2, fittingf];
+    } else {
+        return [c, chi2, fitting_f];
+    }
+}
+
+function POLYNOMIAL(n) {
+    return Array.from(new Array(n+1), (_,i) => (x,P=p) => x**P);
+}
+const CONSTANT  = POLYNOMIAL(0);
+const LINEAR    = POLYNOMIAL(1);
+const QUADRATIC = POLYNOMIAL(2);
+const CUBIC     = POLYNOMIAL(3);
+const QUARTIC   = POLYNOMIAL(4);
+
+class Trader {
+    // the forecasting model
+    model(window) {
+        // we fit the last few days quadratically
+        let points = Array.from(window, (y,x) => [x, y['adjusted_close']]);
+        let [a,chi2,fitting_f] = fit_least_squares(points, QUADRATIC);
+        // and we extrapolate tomorrow's price
+        let tomorrow_prediction = fitting_f(points.length);
+        return tomorrow_prediction;
+    }
+
+    strategy(history, ndays=7) {
+        // the trading strategy
+        if (history.length < ndays) {
+            return;
+        } else {
+            // ...                            \/\/\/
+            let today_close = history.slice(-1)[0]['adjusted_close'];
+            let tomorrow_prediction = model(history.slice(-ndays));
+            return tomorrow_prediction > today_close ? 'buy' : 'sell'
+        }
+    }
+
+    simulate(data, cash=1000, shares=0, daily_rate=0.03/360) {
+        // find fitting parameters that optimize the trading strategy
+        for (let t=0; t < data.length; t++) {
+            let suggestion = this.strategy(data.slice(t));
+            let today_close = data[t-1]['adjusted_close'];
+            // and we buy or sell based on our strategy
+            if (cash > 0 && suggestion === 'buy') {
+                // we keep track of finances
+                let shares_bought = Math.trunc(cash/today_close);
+                shares += shares_bought;
+                cash -= shares_bought * today_close;
+            } else if (shares > 0 && suggestion === 'sell' ) {
+                cash += shares * today_close;
+                shares = 0;
+            }
+            // we assume money in the bank also gains an interest
+            cash *= Math.exp(daily_rate);
+        }
+        // we return the net worth
+        return cash + shares * data.slice(-1)[0]['adjusted_close'];
+    }
+}
+
+// need complex numbers
+function sqrt(x) {
+    try {
+        return Math.sqrt(x);
+    } catch (err) {
+        return 
+    }
+}
+
+function Jacobi_eigenvalues(A, checkpoint=false) {
+
+    /*Returns U end e so that A=U*diagonal(e)*transposed(U)
+       where i-column of U contains the eigenvector corresponding to
+       the eigenvalue e[i] of A.
+
+       from http://en.wikipedia.org/wiki/Jacobi_eigenvalue_algorithm*/
+    function maxind(M,k) {
+        let j=k+1;
+        for (let i=k+2; i < M.ncols; i++) {
+            if (abs(M[k][i]) > abs(M[k][j])) {
+               j=i
+            }
+        }
+        return j
+    }
+
+    let n = A.nrows;
+    if (n !== A.ncols) {
+        throw 'Matrix not squared';
+    }
+    let indexes = new Array(n);
+    S = Matrix(n,n, fill=lambda r,c: float(A[r,c]))
+    E = Matrix.identity(n)
+    state = n
+    ind = [maxind(S,k) for k in indexes]
+    e = [S[k,k] for k in indexes]
+    changed = [True for k in indexes]
+    iteration = 0
+    while state:
+        if checkpoint: checkpoint('rotating vectors (%i) ...' % iteration)
+        m=0
+        for k in xrange(1,n-1):
+            if abs(S[k,ind[k]])>abs(S[m,ind[m]]): m=k
+            pass
+        k,h = m,ind[m]
+        p = S[k,h]
+        y = (e[h]-e[k])/2
+        t = abs(y)+sqrt(p*p+y*y)
+        s = sqrt(p*p+t*t)
+        c = t/s
+        s = p/s
+        t = p*p/t
+        if y<0: s,t = -s,-t
+        S[k,h] = 0
+        y = e[k]
+        e[k] = y-t
+        if changed[k] and y==e[k]:
+            changed[k],state = False,state-1
+        elif (not changed[k]) and y!=e[k]:
+            changed[k],state = True,state+1
+        y = e[h]
+        e[h] = y+t
+        if changed[h] and y==e[h]:
+            changed[h],state = False,state-1
+        elif (not changed[h]) and y!=e[h]:
+            changed[h],state = True,state+1
+        for i in xrange(k):
+            S[i,k],S[i,h] = c*S[i,k]-s*S[i,h],s*S[i,k]+c*S[i,h]
+        for i in xrange(k+1,h):
+            S[k,i],S[i,h] = c*S[k,i]-s*S[i,h],s*S[k,i]+c*S[i,h]
+        for i in xrange(h+1,n):
+            S[k,i],S[h,i] = c*S[k,i]-s*S[h,i],s*S[k,i]+c*S[h,i]
+        for i in indexes:
+            E[k,i],E[h,i] = c*E[k,i]-s*E[h,i],s*E[k,i]+c*E[h,i]
+        ind[k],ind[h]=maxind(S,k),maxind(S,h)
+        iteration+=1
+    # sort vectors
+    for i in xrange(1,n):
+        j=i
+        while j>0 and e[j-1]>e[j]:
+            e[j],e[j-1] = e[j-1],e[j]
+            E.swap_rows(j,j-1)
+            j-=1
+    # normalize vectors
+    U = Matrix(n,n)
+    for i in indexes:
+        norm = sqrt(sum(E[i,j]**2 for j in indexes))
+        for j in indexes: U[j,i] = E[i,j]/norm
+    return U,e
+    }
 }
