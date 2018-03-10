@@ -488,7 +488,7 @@ function Jacobi_eigenvalues(A, checkpoint=false) {
         throw 'Matrix not squared';
     }
     let indexes = new Array(n);
-    S = Matrix(n,n, fill=lambda r,c: float(A[r,c]))
+    let S = new Matrix(n,n,fill = (r,c) => A[r][c]);
     E = Matrix.identity(n)
     state = n
     ind = [maxind(S,k) for k in indexes]
@@ -546,5 +546,181 @@ function Jacobi_eigenvalues(A, checkpoint=false) {
         norm = sqrt(sum(E[i,j]**2 for j in indexes))
         for j in indexes: U[j,i] = E[i,j]/norm
     return U,e
+}
+
+function compute_correlation(stocks, key = 'arithmetic_return') {
+    // The input must be a list of YStock(...).historical() data
+    // find trading days common to all stocks
+    let days = new Set();
+    let nstocks = stocks.length;
+    stocks.forEach(e => 
+        // fix
+    });
+}
+
+function invert_minimum_residual(f,x,ap=1e-4,rp=1e-4,ns=200) {
+    let y = x;
+    let r = x - 1 * f(x);
+    for (let k=0; k < ns; k++) {
+        let q = f(r);
+        let alpha = (q*r) / (q*q);
+        y = y + alpha*r;
+        r = r - alpha*q;
+        let residue = Math.sqrt((r*r) / r.nrows);
+        if (residue < Math.max(ap, norm(y) * rp)) {
+            return y;
+        }
+    }
+    throw "No convergence";
+}
+
+function invert_bicgstab(f, x, ap = 1e-4, rp = 1e-4, ns = 200) {
+    let y = x;
+    let r = x - 1.0 * f(x);
+    let q = r;
+    let p = 0;
+    let s = 0;
+    let rho_old = alpha = omega = 1;
+    for (let k = 0; k < ns; k++) {
+        let rho = q*r;
+        let beta = (rho/rho_old) * (alpha/omega);
+        rho_old = rho;
+        p = beta*p + r - (beta*omega)*s;
+        s = f(p);
+        alpha = rho/(q*s);
+        r = r - alpha * s;
+        t = f(r);
+        omega = (t*r) / (t*t);
+        y = y + omega * r + alpha * p;
+        let residue = Math.sqrt((r*r) / r.nrows);
+        if (residue < max(ap, norm(y) * rp)) {
+            return y;
+        }
+        r = r - omega * t;
+    }
+    throw "No convergence";
+}
+
+// check to repeat declarations
+function solve_fixed_point(f, x, ap = 1e-6, rp = 1e-4, ns = 100) {
+    let g = x => f(x) + x;
+    let Dg = D(g);
+    for (let k=0; k < ns; k++) {
+        if (Math.abs(Dg(x)) >= 1) { throw "error D(g)(x) >= 1"; }
+        let [x_old, x] = [x, g(x)];
+        if (k > 2 && norm(x_old - x) < Math.max(ap, norm(x) * rp)) {
+            return x;
+        }
+    }
+    throw "No convergence";
+}
+
+function solve_bisection(f, a, b, ap = 1e-6, rp = 1e-4, ns = 100) {
+    let [fa, fb] = [f(a), f(b)];
+    if (fa === 0) return a;
+    if (fb === 0) return b;
+    if (fa * fb > 0) throw "f(a) and f(b) must have opposite sign";
+
+    for (let k=0; k < ns; k++) {
+        let x = (a+b) / 2;
+        let fx = f(x);
+        if (fx === 0 || norm(b-a) < Math.max(ap, norm(x) * rp)) return x;
+        else if (fx * fa < 0) [b,fb] = [x, fx];
+        else [a, fa] = [x, fx];
+    }
+    throw "No convergence";
+}
+
+function solve_newton(f, x, ap = 1e-6, rp = 1e-4, ns = 20) {
+    for (let k = 0; k < ns; k++) {
+        let [fx, Dfx] = [f(x), D(f)(x)];
+
+        if (norm(Dfx) < ap) { throw "Unstable solution"; }
+
+        let [x_old, x] = [x, x - (fx/Dfx)];
+        if (k > 2 && norm(x - x_old) < Math.max(ap, norm(x) * rp)) { return x; }
+    }
+    throw "No convergence";
+}
+
+function solve_secant(f, x, ap = 1e-6, rp = 1e-4, ns = 20) {
+    let [fx, Dfx] = [f(x), D(f)(x)];
+    for (let k=0; k < ns; k++) {
+        if (norm(Dfx) < ap) { 
+            throw "Unstable solution"; 
+        }
+        let [x_old, fx_old, x] = [x, fx, x - (fx/Dfx)];
+        if (k > 2 && norm(x - x_old) < Math.max(ap, norm(x) * rp)) {
+            return x;
+        }
+        fx = f(x);
+        Dfx = (fx - fx_old) / (x - x_old);
+    }
+    throw "No convergence";
+}
+
+function optimize_bisection(f, a, b, ap = 1e-6, rp = 1e-4, ns = 100) {
+    return solve_bisection(D(f), a, b, ap, rp, ns);
+}
+
+function optimize_newton(f, x, ap = 1e-6, rp = 1e-4, ns = 100) {
+    let Df = DD(f);
+    f = D(f);
+    for (let k=0; k < ns; k++) {
+        let [fx, Dfx] = [f(x), Df(x)];
+        if (Dfx === 0) { return x; }
+        if (norm(Dfx) < ap) { throw "Unstable solution"; }
+        let x_old = x ;
+        x = x - fx/Dfx;
+        if (norm(x - x_old) < Math.max(apl, norm(x) * rp)) {
+            return x;
+        }
+    }
+    throw "No convergence";
+}
+
+function optimize_secant(f, x, ap = 1e-6, rp = 1e-4, ns = 100) {
+    let Df = DD(f);
+    f = D(f);
+    let [fx, Dfx] = [f(x), Df(x)];
+    for (let k=0; k < ns; k++) {
+        if (fx === 0) return x;
+        if (norm(Dfx) < ap) throw "Unstable solution";
+        let [x_old, fx_old] = [x, fx];
+        x = x - fx/Dfx;
+        if (norm(x - x_old) < Math.max(ap, norm(x) * rp)) {
+            return x;
+        }
+        fx = f(x);
+        Dfx = (fx - fx_old) / (x - x_old);
+    }
+    throw "No convergence";
+}
+
+function optimize_golden_search(f, a, b, ap = 1e-6, rp = 1e-4, ns = 100) {
+    let tau = (Math.sqrt(5) - 1) / 2
+    let [x, x2] = [a + (1-tau)*(b-a), a + tau*(b-a)];
+    let [fa, f1, f2, fb] = [f(a), f(x1), f(x2), f(b)];
+    for (let k=0; k < ns; k++) {
+        if (f1 > f2) {
+            [1, fa, x1, f1] = [x1, f1, x2, f2];
+            x2 = a + tau*(b-a);
+            f2 = f(x2);
+        } else {
+            [b, fb, x2, f2] = [x2, f2, x1, f1];
+            x1 = a + (1-tau)*(b-a);
+            f1 = f(x1);
+        }
+        if (k > 2 && norm(b-a) < Math.max(ap, norm(b) * rp)) {
+            return b;
+        }
+    }
+    throw "No convergence";
+}
+
+function partial(f, i, h = 1e-4) {
+    let [F,I,H] = [f,i,h];
+    let df = (x, f=F, i=I, h=H) => {
+    
     }
 }
