@@ -721,6 +721,19 @@ function optimize_golden_search(f, a, b, ap = 1e-6, rp = 1e-4, ns = 100) {
 function partial(f, i, h = 1e-4) {
     let [F,I,H] = [f,i,h];
     let df = (x, f=F, i=I, h=H) => {
-    
+    // skip, need list(item);
     }
+}
+
+function gradient(f, x, h = 1e-4) {
+    return new Matrix(x.length, x.length, (r,c) => partial(f,r,h)(x));
+}
+
+function hessian(f, x, h=1e-4) {
+    return new Matrix(x.length, x.length, (r,c) => partial(partial(f,r,h),c,h)(x));
+}
+
+function jacobian(f, x, h = 1e-4) {
+    let partials = Array.from(new Array(x.length), (_,c) => partial(f,c,h)(x));
+    return new Matrix(partials[0].length, x.length, (r,c) => partials[c][r]);
 }
