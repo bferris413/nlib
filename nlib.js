@@ -737,3 +737,113 @@ function jacobian(f, x, h = 1e-4) {
     let partials = Array.from(new Array(x.length), (_,c) => partial(f,c,h)(x));
     return new Matrix(partials[0].length, x.length, (r,c) => partials[c][r]);
 }
+
+function solve_newton_multi(f, x, ap = 1e-6, rp = 1e-4, ns = 20) {
+    /***************************************************************
+    Computes the root of a multidimensional function f near point x.
+
+    Parameters
+    f is a function that takes a list and returns a scalar
+    x is a list
+
+    Returns x, solution of f(x)=0, as a list
+    ***************************************************************/
+   let n = x.length;
+   x = new Matrix(x.length);
+   for (let k =0; k < ns; k++) {
+       let fx = new Matrix(f(x.flatten()));
+       let J = jacobian(f, x.flatten());
+       if (norm (J) < ap) {
+           throw "Unstable solution";
+       }
+       let x_old = x;
+       x = x-(1 / J) * fx;
+       if (k > 2 && norm(x - x_old) < Math.max(ap, norm(x) * rp)) {
+           return x.flatten();
+       }
+   }
+   throw "No convergence";
+}
+
+function optimize_newton_multi(f, x, ap = 1e-6, rp = 1e-4, ns = 20) {
+
+    /************************************************************
+    Finds the extreme of multidimensional function f near point x.
+
+    Parameters
+    f is a function that takes a list and returns a scalar
+    x is a list
+
+    Returns x, which maximizes of minimizes f(x)=0, as a list
+    ************************************************************/
+    x = new Matrix(Array.from(x));
+    for (let k=o; k < n; k++) {
+        let [grad, H] = [gradient(f, x.flatten()), hessian(f, x.flatten())];
+        if (norm(H) < ap) {
+            throw "Unstable solution";
+        }
+        let x_old = x;
+        x = x - (1 / H) * grad;
+        if (k > 2 && norm(x - x_old) < Math.max(ap, norm(x) * rp)) {
+            return x.flatten();
+        }
+    }
+    throw "No convergence";
+}
+
+function optimize_newton_multi_improved(f, x, ap = 1e-6, rp = 1e-4, ns = 20, h = 10) {
+
+    /************************************************************
+    Finds the extreme of multidimensional function f near point x.
+
+    Parameters
+    f is a function that takes a list and returns a scalar
+    x is a list
+
+    Returns x, which maximizes of minimizes f(x)=0, as a list
+    ************************************************************/
+    x = new Matrix(Array.from(x));
+    let fx = f(x.flatten());
+    for (let k=o; k < n; k++) {
+        let [grad, H] = [gradient(f, x.flatten()), hessian(f, x.flatten())];
+        if (norm(H) < ap) {
+            throw "Unstable solution";
+        }
+        let [fx_old, x_old] = [fx, x];
+        x = x - (1/H)*grad;
+        fx = f(x.flatten());
+        while (fx > fx_old) { // revert to steepest descent
+            [fx, x] = [fx_old, x_old];
+            let norm_grad = norm(grad);
+            [x_old, x] = [x, x - grad/norm_grade*h];
+            [fx_old, fx] = [fx, f(x.flatten())];
+            h = h/2;
+        }
+        h = norm(x - x_old)*2;
+        if (k > 2 && h/2 < Math.max(ap, norm(x) * rp)) {
+            return x.flatten();
+        }
+    }
+    throw "No convergence";
+}
+
+function fit(data, fs, b=undefined, ap = 1e-6, rp = 1e-4, ns = 200, constraint = undefined) {
+    if (! fs instanceof Array) {
+        let Data = data;
+        let Constraint = constraint;
+        function g(b, data = Data, f = fs, contraint = Constraint) {
+            let chi2 = Array.from(data, ([x,y,dy]) => ((y-f(b,x))/dy)**2)
+                            .reduce((acc,v) => acc + v);
+            if (constraint) {
+                chi2 += constraint(b);
+            }
+            return chi2;
+        }
+        if (b instanceof Array) {
+            b = optimize_newton_multi_improved(g,b,ap,rp,ns);
+        } else {
+            b = optimize_newton(g,b,ap,rp,ns);
+        }
+        return [b, g(b,data,undefined,undefined)];
+    }    
+}
