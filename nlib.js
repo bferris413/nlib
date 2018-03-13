@@ -919,4 +919,7 @@ function integrate_quadrature_naive(f, a, b, n = 20, order = 4) {
                 .reduce((ac,v) => ac + v);
 }
 
-let E = (f,S) => (S.map(x => f(x)).reduce((ac,v) => ac + v)) / (S.length || 1);
+let E =         (f,S) => (S.map(x => f(x)).reduce((ac,v) => ac + v)) / (S.length || 1);
+let mean =      X => E(x => x, X);
+let variance =  X => E(x => x**2, X) - E(x => x, X)**2;
+let sd =        X => Math.sqrt(variance(X));
