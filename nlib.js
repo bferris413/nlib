@@ -919,7 +919,76 @@ function integrate_quadrature_naive(f, a, b, n = 20, order = 4) {
                 .reduce((ac,v) => ac + v);
 }
 
-let E =         (f,S) => (S.map(x => f(x)).reduce((ac,v) => ac + v)) / (S.length || 1);
-let mean =      X => E(x => x, X);
-let variance =  X => E(x => x**2, X) - E(x => x, X)**2;
-let sd =        X => Math.sqrt(variance(X));
+let E = (f,S) => (S.map(x => f(x)).reduce((ac,v) => ac + v)) / (S.length || 1);
+let mean = X => E(x => x, X);
+let variance = X => E(x => x**2, X) - E(x => x, X)**2;
+let sd = X => Math.sqrt(variance(X));
+
+function covariance(X, Y) {
+    let sum = new Array(X.length)
+                .fill(0)
+                .map((_,i) => X[i] * Y[i])
+                .reduce((a,v) => a + v);
+    return sum/X.length - mean(X) * mean(Y);
+}
+
+let correlation = (X,Y) => covariance(X,Y) / sd(X) / sd(Y);
+
+class MCG {
+    constructor(seed, a=66539, m=2**31) {
+        this.x = seed;
+        [this.a, this.m] = [a, m];
+    }
+
+    next() {
+        this.x = (this.a * this.x) % this.m;
+        return this.x;
+    }
+
+    random() { 
+        return this.next() / this.m;
+    }
+}
+
+
+
+/**********************************************************************************
+ * Comparison of fill() vs Array.from() vs [..spread] for creating and filling a new
+ * array. fill() is clearly the superior choice, being 2x-4x faster than the others.
+ * ********************************************************************************/
+function timing() {
+
+    // same speed as below
+    console.log('Array(i).fill(i).map( =>...)');
+    console.time('fill');
+    for (let i=1; i <= 20000; i++) {
+        Array(i).fill(undefined).map((_,i) => i**2).reduce((a,v) => a+v);
+    }
+    console.timeEnd('fill');
+
+    // fastest
+    console.log('new Array(i).fill(i)...');
+    console.time('fillnew');
+    for (let i=1; i <= 20000; i++) {
+        new Array(i).fill(undefined).map((_,i) => i**2).reduce((a,v) => a+v);
+    }
+    console.timeEnd('fillnew');
+
+    // best syntax, average run-time of all options
+    console.log('[...Array(i)].map( =>...)');
+    console.time('spread');
+    for (let i=1; i <= 20000; i++) {
+        [...Array(i)].map((_,i) => i**2).reduce((a,v) => a+v);
+    }
+    console.timeEnd('spread');
+
+    // longest syntax, and by far the slowest run time
+    console.log('Array.from(Array(i)...).map( =>...)');
+    console.time('from');
+    for (let i=1; i <= 20000; i++) {
+        Array.from(Array(i), e => undefined).map((_,i) => i**2).reduce((a,v) => a+v);
+    }
+    console.timeEnd('from');
+}
+
+// skip Mersenne Twister - down to 1619
