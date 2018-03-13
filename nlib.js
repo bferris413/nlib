@@ -827,6 +827,7 @@ function optimize_newton_multi_improved(f, x, ap = 1e-6, rp = 1e-4, ns = 20, h =
     throw "No convergence";
 }
 
+// fix
 function fit(data, fs, b=undefined, ap = 1e-6, rp = 1e-4, ns = 200, constraint = undefined) {
     if (! fs instanceof Array) {
         let Data = data;
@@ -844,6 +845,78 @@ function fit(data, fs, b=undefined, ap = 1e-6, rp = 1e-4, ns = 200, constraint =
         } else {
             b = optimize_newton(g,b,ap,rp,ns);
         }
+        // semantics?
         return [b, g(b,data,undefined,undefined)];
-    }    
+    } else if (! b) {
+        let [a, chi2, ff] = fit_least_squares(data, fs);
+    } else {
+        let na = fs.length;
+        let Data = data;
+        let Fs = fs;
+        function core(b, data = Data, fs = FS) {
+            let A = new Matrix()
+            // unfinished
+        }
+    }
 }
+
+function integrate_naive(f, a, b, n=20) {
+    /***************************************************
+    Integrates function, f, from a to b using the trapezoidal rule
+    >>> from math import sin
+    >>> integrate(sin, 0, 2)
+    1.416118...
+    ***************************************************/
+    const h = (b-a) / n;
+    return h/2 * (f(a) + f(b)) + h * (Array.from(new Array(n-1), (_,i) => f(a+h*i))
+                                        .reduce((ac,v) => ac + v));
+}
+
+function integrate(f, a, b, ap = 1e-4, rp = 1e-4, ns = 20) {
+    /****************************************************
+    Integrates function, f, from a to b using the trapezoidal rule
+    converges to precision
+    ****************************************************/
+    let I = integrate_naive(f, a, b, 1), I_old;
+    for (let k=1; k < ns; k++) {
+        [I_old, I] = [I, integrate_naive(f, a, b, 2**k)];
+        if (k > 2 && norm(I-I_old) < Math.max(ap, norm(I) * rp)) {
+            return I;
+        }
+    }
+    throw "No convergence";
+}
+
+// Matrix divs, fix
+class QuadratureIntegrator {
+    /**********************************************************
+    Calculates the integral of the function f from points a to b
+    using n Vandermonde weights and numerical quadrature.
+    ***********************************************************/
+   constructor(order = 4) {
+       let h = 1/(order=1);
+       let A = new Matrix(order, order, (r,c) => (c*h)**r);
+       let s = new Matrix(order, 1, (r,c) => 1 / (r+1));
+       // Matrix div, fix
+       let w = (1/A) * s;
+       this.w = w;
+   }
+
+   integrate(f, a, b) {
+       let w = self.w;
+        let order = w.rows.length;
+        let h = (b-a)/(order-1);
+        return (b-a) * Array.from(new Array(order), (_,i) => w[i][0] * f(a + i*h))
+                            .reduce((ac,v) => av + v);
+
+   }
+}
+
+function integrate_quadrature_naive(f, a, b, n = 20, order = 4) {
+    let h = (b-a) / n;
+    let q = QuadratureIntegrator(order);
+    return Array.from(new Array(n), (_,i) => q.integrate(f, a+i*h, a+i*h+h))
+                .reduce((ac,v) => ac + v);
+}
+
+let E = (f,S) => (S.map(x => f(x)).reduce((ac,v) => ac + v)) / (S.length || 1);

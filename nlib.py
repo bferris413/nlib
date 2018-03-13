@@ -1500,8 +1500,7 @@ def fit(data, fs, b=None, ap=1e-6, rp=1e-4, ns=200, constraint=None):
     else:
         na = len(fs)
         def core(b,data=data,fs=fs):
-            A = Matrix([[fs[k](b,x)/dy for k in xrange(na)] \
-                                  for (x,y,dy) in data])
+            A = Matrix([[fs[k](b,x)/dy for k in xrange(na)] for (x,y,dy) in data])
             z = Matrix([[y/dy] for (x,y,dy) in data])
             a = (1/(A.T*A))*(A.T*z)
             chi2 = norm(A*a-z)**2
