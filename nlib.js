@@ -950,6 +950,154 @@ class MCG {
     }
 }
 
+// skip Mersenne Twister - down to 1619
+function leapfrog(mcg, k) {
+    let a = mcg.a**k % mcg.m;
+    return new Array(k).fill(0).map(_ => new MCG(mcg.next(), a, mgc.m));
+}
+
+class RandomSource {
+    constructor(generator = undefined) {
+        if (! generator) { this.generator = Math.random; }
+        else { this.generator = generator; }
+    }
+
+    random() { 
+        return this.generator(); 
+    }
+
+    randint(a,b) { 
+        Math.trunc(a + (b-a+1) * this.generator()); 
+    }
+
+    choice(S) {
+        return S[this.randint(0, S.length - 1)];
+    }
+
+    bernoulli(p) {
+        return this.generator() < p ? 1 : 0;
+    }
+
+    // fix
+    lookup(table, epsilon = 1e-6) {
+        let u = this.generator();
+        // you can take an obj
+        for (let key in table) {
+
+        }
+    }
+
+    binomial(n, p, epsilon = 1e-6) {
+        let u = this.generator();
+        let q = (1-0)**n;
+        for (let k=0; k < n+1; k++) {
+            if (u < q+epsilon) {
+                return k;
+            }
+            u = u-q;
+            q = q * (n-k) / (k+1) * p / (1-p);
+        }
+        throw "Invalid probability";
+    }
+
+    negative_binomial(k, p, epsilon = 1e-6) {
+        let u = this.generator();
+        let n= k;
+        let q = p**k;
+        while (true) {
+            if (u < q+epsilon) {
+                return n;
+            }
+            u = u-q;
+            q = q * n / (n-k+1) * (1-p);
+            n = n+1;
+        }
+        throw "Invalid probability";
+    }
+
+    poisson(lamb, epsilon = 1e-6) {
+        let u = this.generator();
+        let q = exp(-lamb);
+        let k = 0;
+        while (true) {
+            if (u < q+epsilon) {
+                return k;
+            }
+            u = u-q;
+            q = q*lamb/(k+1);
+            k = k+1;
+        }
+        throw "Invalid probability";
+    }
+
+    uniform(a, b) {
+        return a+(b-a) * this.generator();
+    }
+
+    exponential(lamb) {
+        return -Math.log(this.generator()) / lamb;
+    }
+
+    // fix
+    gauss(mu = 0, sigma = 1) {
+
+    }
+}
+
+function confidence_intervals(mu, sigma) {
+    // Computes the  normal confidence intervals.
+    const CONFIDENCE=[
+        [0.68,1.0],
+        [0.80,1.281551565545],
+        [0.90,1.644853626951],
+        [0.95,1.959963984540],
+        [0.98,2.326347874041],
+        [0.99,2.575829303549],
+        [0.995,2.807033768344],
+        [0.998,3.090232306168],
+        [0.999,3.290526731492],
+        [0.9999,3.890591886413],
+        [0.99999,4.417173413469]
+    ];
+    return Array.from(CONFIDENCE, ([a,b]) => [a, mu-b*sigma, mu+b*sigma]);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 /**********************************************************************************
@@ -991,4 +1139,3 @@ function timing() {
     console.timeEnd('from');
 }
 
-// skip Mersenne Twister - down to 1619
