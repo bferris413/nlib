@@ -9,8 +9,8 @@
  * 
  * 2) PersistentObject, Memoize, and Canvas classes are not implemented.
  * In order to implement these, the project must run on Node.js with a number
- * of additional dependencies, some of which would need to be converted to JS
- * themselves (it matplotlib, some form of SQLite, etc.).
+ * of additional dependencies, some of which may or may not need to be 
+ * converted to JS themselves (ie matplotlib, some form of SQLite, etc.).
  */
 
 const pi = Math.PI;
@@ -31,16 +31,17 @@ function timef(f, ns=1000, dt=60) {
 }
 
 function breadth_first_search(graph, start) {
-    let vertices = graph.vertices;
-    let nodes = graph.nodes;
+    let [vertices, links] = graph;
     let blacknodes = [];
     let graynodes = [start];
-    let neighbors = [[]]
+    let neighbors = Array(vertices.length).fill([]);
 
-    for (link in links) { neighbors[link[0]].concat(link[1]); }
+    for (let link in links) { 
+        neighbors[link[0]].concat(link[1]); 
+    }
     while (graynodes) {
         let current = graynodes.pop();
-        for (neighbor in neighbors[current]) {
+        for (let neighbor in neighbors[current]) {
             if (! (blacknodes.includes(neighbor) || graynodes.includes(neighbor))) {
                 graynodes.splice(0,0,neighbor);
             }
@@ -51,18 +52,19 @@ function breadth_first_search(graph, start) {
 }
 
 function depth_first_search(graph, start) {
-    let vertices = graph.vertices;
-    let nodes = graph.nodes;
+    let [vertices, links] = graph;
     let blacknodes = [];
     let graynodes = [start];
-    let neighbors = [[]]
+    let neighbors = Array(vertices.length).fill([]);
 
-    for (link in links) { neighbors[link[0].push(link[1])]; }
+    for (let link in links) {
+        neighbors[link[0]].concat(link[1]); 
+    }
     while (graynodes) {
         let current = graynodes.pop();
-        for (neighbor in neighbors[current]) {
+        for (let neighbor in neighbors[current]) {
             if (! (blacknodes.includes(neighbor) || graynodes.includes(neighbor))) {
-                graynodes.push(0,0,neighbor);
+                graynodes.push(neighbor);
             }
         }
         blacknodes.push(current);
@@ -72,7 +74,7 @@ function depth_first_search(graph, start) {
 
 class DisjointSets {
     constructor(n) {
-        this.sets = Array.from(new Array(n), (x,i) => -1);
+        this.sets = new Array(n).fill(-1);
         this.counter = n;
     }
 
@@ -105,18 +107,59 @@ class DisjointSets {
 
 // not implemented
 function make_maze(n, d) {
-    
+
 }
 
-// not implemented
 function Kruskal(graph) {
-    let vertices = graph.vertices;
-    let links = graph.links;
+    let [vertices, links] = graph;
     let A = [];
     let S = DisjointSets(vertices.length);
     links.sort((a,b) => a[2] - b[2]);
+    for (let [source,dest,length] in links) {
+        if (S.join(source, dest)) {
+            A.push([source,dest,length]);
+        }
+    }
+    return A;
+}
 
-    // incomplete
+class PrimVertex {
+    constructor(id, links) {
+        this.INFINITY = 1e100;
+        this.id = id;
+        this.closest = undefined;
+        this.closest_dist = this.INFINITY;
+        this.neighbors = links.filter(link => link[0] === id)
+                                .map(link => link.splice(1));
+    }
+
+    // need javascript default comparison
+    cmp(me, you) {
+        return this.closest_dist - you.closest_dist;
+    }
+}
+
+// fix
+function Prim(graph, start) {
+    let [vertices, links] = graph;
+    let P = vertices.map(i => new PrimVertex(i, links));
+    let Q = vertices.filter(i => i !== start)
+                    .map(i => P[i]);
+    let vertex = P[start];
+    while (Q) {
+        let neighbor;
+        for (let [neighbor_id, length] in vertex.neighbors) {
+            neighbor = P[neighbor_id];
+            if (Q.includes(neighbor) && length < neighbor.closest_dist) {
+                neighbor.closest = vertex;
+                neighbor.closest_dist = length;
+            }
+        }
+        // need heap, fix
+        heapify(Q);
+        vertex = heappop(Q);
+    }
+    // need return, fix
 }
 
 // skip to line 527
@@ -737,7 +780,7 @@ function optimize_newton_multi_improved(f, x, ap = 1e-6, rp = 1e-4, ns = 20, h =
     ************************************************************/
     x = new Matrix(Array.from(x));
     let fx = f(x.flatten());
-    for (let k=o; k < n; k++) {
+    for (let k=0; k < n; k++) {
         let [grad, H] = [gradient(f, x.flatten()), hessian(f, x.flatten())];
         if (norm(H) < ap) {
             throw "Unstable solution";
@@ -1124,41 +1167,91 @@ class MCEngine {
 
 
 /**********************************************************************************
- * Comparison of fill() vs Array.from() vs [..spread] for creating and filling a new
- * array. fill() is clearly the superior choice, being 2x-4x faster than the others.
+ * Timing comparison of functions creating new arrays.
  * ********************************************************************************/
 function timing() {
 
-    // same speed as below
-    console.log('Array(i).fill(i).map( =>...)');
-    console.time('fill');
-    for (let i=1; i <= 20000; i++) {
-        Array(i).fill(undefined).map((_,i) => i**2).reduce((a,v) => a+v);
+    let A = []
+    for (let i=0; i < 10000; i++) {
+        A.push(new Array(1000).fill(1000));
     }
-    console.timeEnd('fill');
+    B = []
 
-    // fastest
-    console.log('new Array(i).fill(i)...');
-    console.time('fillnew');
-    for (let i=1; i <= 20000; i++) {
-        new Array(i).fill(undefined).map((_,i) => i**2).reduce((a,v) => a+v);
-    }
-    console.timeEnd('fillnew');
-
-    // best syntax, average run-time of all options
-    console.log('[...Array(i)].map( =>...)');
-    console.time('spread');
-    for (let i=1; i <= 20000; i++) {
-        [...Array(i)].map((_,i) => i**2).reduce((a,v) => a+v);
-    }
-    console.timeEnd('spread');
-
-    // longest syntax, and by far the slowest run time
-    console.log('Array.from(Array(i)...).map( =>...)');
+    // by far the slowest
+    console.log('Array.from(...):')
     console.time('from');
-    for (let i=1; i <= 20000; i++) {
-        Array.from(Array(i), e => undefined).map((_,i) => i**2).reduce((a,v) => a+v);
+    for (let i=0; i < A.length; i++) {
+        B.push(Array.from(A).slice(1));
     }
     console.timeEnd('from');
+
+    while (B.length != 0) {
+        B.pop();
+    }
+    
+    console.log('[...array]:')
+    console.time('...array');
+    for (let i=0; i < A.length; i++) {
+        B.push([...A].slice(1));
+    }
+    console.timeEnd('...array');
+
+    while (B.length != 0) {
+        B.pop();
+    }
+
+    // fastest, should use when space isn't an issue (300ms faster than filter,
+    // at the cost of creating an additional array).
+    console.log('...map(_ => ...):')
+    console.time('map');
+    for (let i=0; i < A.length; i++) {
+        B.push(A.map(e => e).slice(1));
+    }
+    console.timeEnd('map');
+
+    while (B.length != 0) {
+        B.pop();
+    }
+
+    // second fastest, should be used if space is an issue (creates one less
+    // array than map, but (I think) incurs a slowdown on conditional check).
+    console.log('.filter(_ => ...):')
+    console.time('filter');
+    for (let i=0; i < A.length; i++) {
+        B.push(A.filter((_,i) => i > 0));
+    }
+    console.timeEnd('filter');
+
+    // // same speed as below
+    // console.log('Array(i).fill(i).map( =>...)');
+    // console.time('fill');
+    // for (let i=1; i <= 20000; i++) {
+    //     Array(i).fill(undefined).map((_,i) => i**2).reduce((a,v) => a+v);
+    // }
+    // console.timeEnd('fill');
+
+    // // fastest
+    // console.log('new Array(i).fill(i)...');
+    // console.time('fillnew');
+    // for (let i=1; i <= 20000; i++) {
+    //     new Array(i).fill(undefined).map((_,i) => i**2).reduce((a,v) => a+v);
+    // }
+    // console.timeEnd('fillnew');
+
+    // // best syntax, average run-time of all options
+    // console.log('[...Array(i)].map( =>...)');
+    // console.time('spread');
+    // for (let i=1; i <= 20000; i++) {
+    //     [...Array(i)].map((_,i) => i**2).reduce((a,v) => a+v);
+    // }
+    // console.timeEnd('spread');
+
+    // // longest syntax, and by far the slowest run time
+    // console.log('Array.from(Array(i)...).map( =>...)');
+    // console.time('from');
+    // for (let i=1; i <= 20000; i++) {
+    //     Array.from(Array(i), e => undefined).map((_,i) => i**2).reduce((a,v) => a+v);
+    // }
+    // console.timeEnd('from');
 }
 
