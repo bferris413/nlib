@@ -1,9 +1,21 @@
+/****************************************************************************
+ * nlib.js
+ * 
+ * Fork of mdipierro's nlib.py numerical library.
+ * 
+ * NOTES:
+ * 1) YStock isn't implemented. The API's on Google/Yahoo are
+ * deprecated or disabled.
+ * 
+ * 2) PersistentObject, Memoize, and Canvas classes are not implemented.
+ * In order to implement these, the project must run on Node.js with a number
+ * of additional dependencies, some of which would need to be converted to JS
+ * themselves (it matplotlib, some form of SQLite, etc.).
+ */
+
 const pi = Math.PI;
-let max = Math.max
-let abs = Math.abs
-
-
-
+const max = Math.max
+const abs = Math.abs
 
 function timef(f, ns=1000, dt=60) {
     let t = Date.now();
@@ -73,19 +85,22 @@ class DisjointSets {
     }
 
     join(i, j) {
-        let i = this.parent(i);
-        let j = this.parent(j);
-        if (1 !== j) {
+        [i, j] = [this.parent(i), this.parent(j)];
+        if (i !== j) {
             this.sets[i] += this.sets[j];
-            this.sets[j] = o;
+            this.sets[j] = i;
             this.counter -= 1;
-            return true;
+            return true; // they have been joined
         }
-        return false;
+        return false; // they were already joined
     }
 
-    joined(i, j) { return this.parent(i) === this.parent(j); }
-    get length() { return this.counter; }
+    joined(i, j) { 
+        return this.parent(i) === this.parent(j); 
+    }
+    get length() {
+        return this.counter; 
+    }
 }
 
 // not implemented
@@ -464,88 +479,6 @@ function sqrt(x) {
     } catch (err) {
         return 
     }
-}
-
-function Jacobi_eigenvalues(A, checkpoint=false) {
-
-    /*Returns U end e so that A=U*diagonal(e)*transposed(U)
-       where i-column of U contains the eigenvector corresponding to
-       the eigenvalue e[i] of A.
-
-       from http://en.wikipedia.org/wiki/Jacobi_eigenvalue_algorithm*/
-    function maxind(M,k) {
-        let j=k+1;
-        for (let i=k+2; i < M.ncols; i++) {
-            if (abs(M[k][i]) > abs(M[k][j])) {
-               j=i
-            }
-        }
-        return j
-    }
-
-    let n = A.nrows;
-    if (n !== A.ncols) {
-        throw 'Matrix not squared';
-    }
-    let indexes = new Array(n);
-    let S = new Matrix(n,n,fill = (r,c) => A[r][c]);
-    E = Matrix.identity(n)
-    state = n
-    ind = [maxind(S,k) for k in indexes]
-    e = [S[k,k] for k in indexes]
-    changed = [True for k in indexes]
-    iteration = 0
-    while state:
-        if checkpoint: checkpoint('rotating vectors (%i) ...' % iteration)
-        m=0
-        for k in xrange(1,n-1):
-            if abs(S[k,ind[k]])>abs(S[m,ind[m]]): m=k
-            pass
-        k,h = m,ind[m]
-        p = S[k,h]
-        y = (e[h]-e[k])/2
-        t = abs(y)+sqrt(p*p+y*y)
-        s = sqrt(p*p+t*t)
-        c = t/s
-        s = p/s
-        t = p*p/t
-        if y<0: s,t = -s,-t
-        S[k,h] = 0
-        y = e[k]
-        e[k] = y-t
-        if changed[k] and y==e[k]:
-            changed[k],state = False,state-1
-        elif (not changed[k]) and y!=e[k]:
-            changed[k],state = True,state+1
-        y = e[h]
-        e[h] = y+t
-        if changed[h] and y==e[h]:
-            changed[h],state = False,state-1
-        elif (not changed[h]) and y!=e[h]:
-            changed[h],state = True,state+1
-        for i in xrange(k):
-            S[i,k],S[i,h] = c*S[i,k]-s*S[i,h],s*S[i,k]+c*S[i,h]
-        for i in xrange(k+1,h):
-            S[k,i],S[i,h] = c*S[k,i]-s*S[i,h],s*S[k,i]+c*S[i,h]
-        for i in xrange(h+1,n):
-            S[k,i],S[h,i] = c*S[k,i]-s*S[h,i],s*S[k,i]+c*S[h,i]
-        for i in indexes:
-            E[k,i],E[h,i] = c*E[k,i]-s*E[h,i],s*E[k,i]+c*E[h,i]
-        ind[k],ind[h]=maxind(S,k),maxind(S,h)
-        iteration+=1
-    # sort vectors
-    for i in xrange(1,n):
-        j=i
-        while j>0 and e[j-1]>e[j]:
-            e[j],e[j-1] = e[j-1],e[j]
-            E.swap_rows(j,j-1)
-            j-=1
-    # normalize vectors
-    U = Matrix(n,n)
-    for i in indexes:
-        norm = sqrt(sum(E[i,j]**2 for j in indexes))
-        for j in indexes: U[j,i] = E[i,j]/norm
-    return U,e
 }
 
 function compute_correlation(stocks, key = 'arithmetic_return') {
@@ -967,7 +900,7 @@ class RandomSource {
     }
 
     randint(a,b) { 
-        Math.trunc(a + (b-a+1) * this.generator()); 
+        return Math.trunc(a + (b-a+1) * this.generator()); 
     }
 
     choice(S) {
@@ -1042,11 +975,49 @@ class RandomSource {
     gauss(mu = 0, sigma = 1) {
 
     }
+
+    pareto(alpha, xm) {
+        let u = this.generator();
+        return xm * (1-u)**(-1/alpha);
+    }
+
+    point_on_circle(radius = 1) {
+        let angle = 2 * pi * this.generator();
+        return [radius * Math.cos(angle), radius * Math.sin(angle)]
+    }
+
+    point_in_circle(radius = 1) {
+        while (true) {
+            let x = this.uniform(-radius, radius);
+            let y = this.uniform(-radius, radius);
+            if (x*x + y*y < radius*radius) {
+                return [x,y,z];
+            }
+        }
+    }
+
+    point_in_sphere(radius = 1) {
+        while (true) {
+            let x = this.uniform(-radius, radius);        
+            let y = this.uniform(-radius, radius);        
+            let z = this.uniform(-radius, radius);        
+
+            if (x*x + y*y + z*z < radius*radius) {
+                return [x,y,z];
+            }
+        }
+    }
+
+    point_on_sphere(radius = 1) {
+        let [x,y,z] = this.point_in_sphere(radius);
+        let norm = Math.sqrt(x*x + y*y + z* z);
+        return [x/norm, y/norm, z/norm];    
+    }
 }
 
 function confidence_intervals(mu, sigma) {
     // Computes the  normal confidence intervals.
-    const CONFIDENCE=[
+    const CONFIDENCE = [
         [0.68,1.0],
         [0.80,1.281551565545],
         [0.90,1.644853626951],
@@ -1062,10 +1033,62 @@ function confidence_intervals(mu, sigma) {
     return Array.from(CONFIDENCE, ([a,b]) => [a, mu-b*sigma, mu+b*sigma]);
 }
 
+function resample(S, size=undefined) {
+    return Array(size || S.length)
+                .fill(0)
+                .map(_ => S[Math.floor(Math.random() * S.length)]);
+}
 
+function bootstrap(x, confidence = .68, nsamples = 100) {
+    // Computes the bootstrap errors of the input list.
+    let mean = S => S.reduce((a,v) => a + v) / S.length;
+    let means = Array(nsamples)
+                    .fill(0)
+                    .map(_ => mean(resample(x)));
+    means.sort((a,b) => a-b);
+    let left_tail = Math.trunc(((1.0-confidence) / 2) * nsamples);
+    let right_tail = nsamples - 1 - left_tail;
+    return [means[left_tail], mean(x), means[right_tail]];
+}
 
+class MCEngine {
+    constructor() {
+        // empty on purpose
+    }
 
+    simulate_many(ap = .1, rp = .1, ns = 1000) {
+        this.results = [];
+        let s1 = 0, s2 = 0;
+        this.convergence = false;
+        let x,mu,variance,dmu;
+        for (let k=1; k < ns; k++) {
+            x = this.simulate_once();
+            this.results.append(x);
+            s1 += x;
+            s2 += x*x;
+            mu = s1/k;
+            variance = s2/k - mu*mu;
+            dmu = Math.sqrt(variance/k);
+            if (k > 10) {
+                if (Math.abs(dmu) < Math.max(ap, Math.abs(mu) * rp)) {
+                    // bug here, Python code reads 'converence'
+                    this.convergence = true;
+                    break;
+                }
+            }
+        }
+        this.results.sort((a,b) => a-b);
+        return bootstrap(this.results);
+    }
 
+    varr(confidence = 95) {
+        let index = Math.trunc(0.01 * this.results.length * confidence + 0.999);
+        if (this.results.length - index < 5) {
+            throw "Not enough data, not reliable";
+        }
+        return this.results[index];
+    }
+}
 
 
 
