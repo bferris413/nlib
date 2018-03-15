@@ -8,7 +8,7 @@
  * deprecated or disabled.
  * 
  * 2) PersistentObject, Memoize, and Canvas classes are not implemented.
- * In order to implement these, the project must run on Node.js with a number
+ * In order to implement these, the project must run on Node.js with some
  * of additional dependencies, some of which may or may not need to be 
  * converted to JS themselves (ie matplotlib, some form of SQLite, etc.).
  */
@@ -134,6 +134,7 @@ class PrimVertex {
     }
 
     // need javascript default comparison
+    // lookup reference, this is wrong...
     cmp(me, you) {
         return this.closest_dist - you.closest_dist;
     }
@@ -148,7 +149,7 @@ function Prim(graph, start) {
     let vertex = P[start];
     while (Q) {
         let neighbor;
-        for (let [neighbor_id, length] in vertex.neighbors) {
+        for (let [neighbor_id, length] of vertex.neighbors) {
             neighbor = P[neighbor_id];
             if (Q.includes(neighbor) && length < neighbor.closest_dist) {
                 neighbor.closest = vertex;
@@ -177,13 +178,12 @@ function decode_huffman(keys, encoded) {
 
 }
 
-// fix, uses enumerate
 function lcs(a, b) {
     let previous = Array(a.length).fill(0);
     let current, e;
-    for (let [i,r] in a) {
+    a.forEach((r,i) => {
         current = [];
-        for (let [j,c] in b) {
+        b.forEach((c,j) => {
             if (r === c) {
                 e = i*j > 0 ? previous[j-1] + 1 : 1
             } else {
@@ -191,40 +191,105 @@ function lcs(a, b) {
                             j > 0 ? current[current.length - 1] : 0);
             }
             current.push(e);
-        }
+        });
         previous = current;
-    }
+    }) ;
     return current[current.length-1];
 }
 
-// fix, uses enumerate
 function needleman_wunsch(a, b, p=0.97) {
     let z = [];
-    for (let [i,r] in a) {
-
-    }
+    a.forEach((r,i) => {
+        z.push([]);
+        b.forEach((c,j) => {
+            if (r === c) {
+                e = i*j > 0 ? z[i-1][j-1] : 1;
+            } else {
+                e = p * Math.max(i > 0 ? z[i-1][j] : 0, 
+                                j > 0 ? z[i][j-1] : 0);
+            }
+            z[z.length-1].push(e);
+        });
+    });
+    return z;
 }
 
-// skip to line 527
 function continuum_knapsack(a,b,c) {
-    let table = [[]]
-    for (let i=0; i < a.length; i++) { table.push([a[i]/b[i],i]); }
-    table.sort();
+    // need 'integer division' - floating point gives NaN
+    let table = Array(a.length).fill(0)
+                                .map((_,i) => [Math.floor(a[i]/b[i]), i]);
+    table.sort(([l,m], [n,o]) => l-n);
     table.reverse();
-    let f = 0.0;
-
-    for (tuple in table) {
-        let y=tuple[0], i=tuple[1];
-        let quantity = Math.min(c/b[i], 1)
+    let f = 0;
+    let quantity;
+    table.forEach(([y,i]) => {
+        // integer division? floating point? 
+        // results vary depending on input - buggy
+        quantity = Math.min(c/b[i], 1);
         x.push([i, quantity]);
-        c = c-b[i] * quantity;
-        f = f+a[i] * quantity; 
-    }
+        c = c - b[i]*quantity;
+        f = f + a[i]*quantity;
+    }) ;
     return [f,x];
 }
 
-// skip to 719
-//
+// fix
+class Cluster {
+    constructor(points, metric, weights = undefined) {
+        [this.points, this.metric] = [points, metric];
+        this.k = points.length;
+        this.w = weights ||Array(self.k).fill(1);
+
+        // py implementation makes this a dict
+        this.q = points.map((_,i) => [i]);
+        this.d = [];
+        let m;
+        for (let i=0; i < this.k; i++) {
+            for (let j=i+1; j < this.k; j++) {
+                m = metric(points[i],points[j]);
+                if (m !== undefined) {
+                    this.d.push([m,i,j]);
+                }
+            }
+        }
+        this.d.sort((a,b) => a[0] - b[0]);
+        this.dd = [];
+    }
+
+    parent(i) {
+        let parent;
+        while (Math.floor(i) === i) {
+            [parent, i] = [i, this.q[i]];
+        }
+        return [parent, i];
+    }
+
+    step() {
+        let i,j,x,y, new_d, old_d;
+        if (this.k > 1) {
+            // find new clusters to join
+            [[this.r,i,j], this.d] = [this.d[0], this.d.map(e=>e).splice(1)]; // could use filter, see timing tests below
+            // join them
+            [i,x] = this.parent(i); // find members of cluster i
+            [j,y] = this.parent(j); // find members of cluster j
+            x += y;                 // join members
+            this.q[j] = i;          // make j cluster point to i
+            this.k -= 1;            // decrease cluster count
+            // update all distances to new joined cluster
+            new_d = []; // links not related to joined clusters
+            old_d = {}; // old links related to joined cluster
+            this.d.forEach(([r,h,k]) => {
+                
+            });
+        }
+    }
+}
+
+// fix
+class NeuralNetwork {
+
+}
+
 function D(f,h=1e-6) {
     return (x,F=f,H=h) => (F(x+H)-F(x-H))/2/H;
 }
@@ -261,7 +326,7 @@ function mysin(x,precision=1e-6,max_steps=40) {
     } else if (x> pi/2) {
        return mysin(pi-x);
     } else if (x > pi/4) {
-       return sqrt(1.0-mysin(pi/2-x)**2)
+       return sqrt(1.0-mysin(pi/2 - x)**2);
     } else {
        let s = x, t=x;                   // first term
        for (let k=1; k <= max_steps; k++) {
@@ -567,14 +632,12 @@ function sqrt(x) {
     }
 }
 
+// fix
 function compute_correlation(stocks, key = 'arithmetic_return') {
     // The input must be a list of YStock(...).historical() data
     // find trading days common to all stocks
     let days = new Set();
     let nstocks = stocks.length;
-    stocks.forEach(e => 
-        // fix
-    });
 }
 
 function invert_minimum_residual(f,x,ap=1e-4,rp=1e-4,ns=200) {
