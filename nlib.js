@@ -162,6 +162,49 @@ function Prim(graph, start) {
     // need return, fix
 }
 
+// fix
+function Dijkstra(graph, start) {
+
+}
+
+// fix
+function encode_huffman(input) {
+
+}
+
+// fix
+function decode_huffman(keys, encoded) {
+
+}
+
+// fix, uses enumerate
+function lcs(a, b) {
+    let previous = Array(a.length).fill(0);
+    let current, e;
+    for (let [i,r] in a) {
+        current = [];
+        for (let [j,c] in b) {
+            if (r === c) {
+                e = i*j > 0 ? previous[j-1] + 1 : 1
+            } else {
+                e = Math.max(i > 0 ? previous[j] : 0,
+                            j > 0 ? current[current.length - 1] : 0);
+            }
+            current.push(e);
+        }
+        previous = current;
+    }
+    return current[current.length-1];
+}
+
+// fix, uses enumerate
+function needleman_wunsch(a, b, p=0.97) {
+    let z = [];
+    for (let [i,r] in a) {
+
+    }
+}
+
 // skip to line 527
 function continuum_knapsack(a,b,c) {
     let table = [[]]
@@ -259,15 +302,15 @@ function mycos(x,precision=1e-6,max_steps=40) {
 class Matrix {
     constructor(rows, cols=1, fill=0.0) {
        
-    /* 
-        Construct a zero matrix
-        Examples:
-        A = Matrix([[1,2],[3,4]])
-        A = Matrix([1,2,3,4])
-        A = Matrix(10,20)
-        A = Matrix(10,20,fill=0.0)
-        A = Matrix(10,20,fill=lambda r,c: 1.0 if r == c else 0.0) 
-    */
+    /******************************************************* 
+     * Construct a zero matrix
+     * Examples:
+     * A = Matrix([[1,2],[3,4]])
+     * A = Matrix([1,2,3,4])
+     * A = Matrix(10,20)
+     * A = Matrix(10,20,fill=0.0)
+     * A = Matrix(10,20,fill=lambda r,c: 1.0 if r == c else 0.0) 
+    *************************************************************/
         if (rows instanceof Array) {
             if (rows[0] instanceof Array) {
                 this.rows = Array.from(rows);
