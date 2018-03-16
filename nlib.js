@@ -233,9 +233,12 @@ function continuum_knapsack(a,b,c) {
     return [f,x];
 }
 
-// fix
 class Cluster {
     constructor(points, metric, weights = undefined) {
+        init(points, metric, weights);
+    }
+
+    init(points, metric, weights = undefined) {
         [this.points, this.metric] = [points, metric];
         this.k = points.length;
         this.w = weights ||Array(self.k).fill(1);
@@ -254,6 +257,7 @@ class Cluster {
         }
         this.d.sort((a,b) => a[0] - b[0]);
         this.dd = [];
+
     }
 
     parent(i) {
@@ -265,7 +269,7 @@ class Cluster {
     }
 
     step() {
-        let i,j,x,y, new_d, old_d;
+        let i,j,x,y,new_d,old_d,a,b;
         if (this.k > 1) {
             // find new clusters to join
             [[this.r,i,j], this.d] = [this.d[0], this.d.map(e=>e).splice(1)]; // could use filter, see timing tests below
@@ -277,16 +281,117 @@ class Cluster {
             this.k -= 1;            // decrease cluster count
             // update all distances to new joined cluster
             new_d = []; // links not related to joined clusters
-            old_d = {}; // old links related to joined cluster
+            old_d = new Map(); // old links related to joined cluster
             this.d.forEach(([r,h,k]) => {
-                
+                if ([i,j].includes(h)) {
+                    [a,b] = old_d.has(k) ? old_d.get(k) : [0,0];
+                    old_d.set(k, [a + this.w[k]*r, b + this.w[k]]);
+                } else if ([i,j].contains(k)) {
+                    [a,b] = old_d.has(h) ? old_d.get(h) : [0,0];
+                    old_d.set(h, [a + this.w[h]*r, b + this.w[h]]);
+                } else {
+                    new_d.push([r,h,k]);
+                }
             });
+            new_d.concat([...old_d].map(([k, [a,b]]) => [a/b, i, k]));
+            new_d.sort((a,b) => a[0] - b[0]);
+            this.d = new_d;
+            // update weight of new cluster
+            this.w[i] = this.w[i] + this.w[j];
+            // get new list of cluster members
+            this.v = [...this.q.values()].filter(s => s instanceof Array);
+            this.dd.push([this.r, self.v.length]);
         }
+        return [this.r, this.v];
+    }
+
+    find(k) {
+        // if necessary start again
+        if (this.k < k) { 
+            this.init(this.points, this.metric); 
+        }
+        while (this.k > k) {
+            this.step(); 
+        }
+        return [this.r, this.v];
     }
 }
 
 // fix
 class NeuralNetwork {
+    /***********************************************************
+    Back-Propagation Neural Networks
+    Placed in the public domain.
+    Original author: Neil Schemenauer <nas@arctrix.com>
+    Modified by: Massimo Di Pierro
+    Read more: http://www.ibm.com/developerworks/library/l-neural/
+    ************************************************************/
+
+    constructor(ni, nh, no) {
+        // number of input, hidden, and output  nodes
+        this.ni = ni + 1;
+        this.nh = nh;
+        this.no = no;
+
+        // activates for nodes
+        this.ai = Array(this.ni).fill(1);
+        this.ah = Array(this.nh).fill(1);
+        this.ao = Array(this.no).fill(1);
+
+        // create weights
+        this.wi = new Matrix(this.ni, this.nh, (r,c) => NeuralNetwork.rand(-.2,.2));
+        this.wo = new Matrix(this.nh, this.no, (r,c) => NeuralNetwork.rand(-2,2));
+
+        // last change in weights for momentum
+        this.co = new Matrix(this.ni, this.nh);
+        this.co = new Matrix(this.nh, this.no);
+    }
+
+    update(inputs) {
+        if (inputs.length !== this.ni-1) {
+            throw "Wrong number of inputs";
+        }
+
+        // input activations
+        for (let i=0; i < this.ni - 1; i++) {
+            this.ai[i] = inputs[i];
+        }
+
+        // hidden activations
+        let s;
+        for (let j=0; j < this.nh; j++) {
+            s = Array(this.ni).fill(undefined)
+                                .map((_,i) => this.ai[i] * this.wi[i][j])
+                                .reduce((a,v) => a+v);
+            this.ah[j] = NeuralNetwork.sigmoid(s);
+        }
+
+        // output activations
+        for (let k=0; k < this.no; k++) {
+            s = Array(this.nh).fill(undefined)
+                                .map((_,j) => this.ah[j] * this.wo[j][k])
+                                .reduce((a,v) => a+v);
+        }
+        return [...this.ao];
+    }
+
+    static rand(a, b) {
+        // Calculate a random number where:  a <= rand < b
+        return (b-a) * Math.random() + a;
+    }
+
+    static sigmoid(x) {
+        // Our sigmoid function, tanh is a littler nicer than the  standard 1/(1+e^-x)
+        return Math.tanh(x);
+    }
+
+    static dsigmoid(y) {
+        // Derivative of our sigmoid function, in terms of the output
+        return 1 - y**2;
+    }
+
+
+
 
 }
 
@@ -315,21 +420,21 @@ function myexp(x,precision=1e-6,max_steps=40) {
 }
 
 function mysin(x,precision=1e-6,max_steps=40) {
-    if (x == 0) { 
+    if (x === 0) { 
         return 0; 
     } else if (x < 0) { 
         return -mysin(-x); 
     } else if (x > 2.0*pi) {
-       return mysin(x % (2.0*pi))
+       return mysin(x % (2.0*pi));
     } else if (x > pi) {
        return -mysin(2.0*pi - x);
     } else if (x> pi/2) {
        return mysin(pi-x);
     } else if (x > pi/4) {
-       return sqrt(1.0-mysin(pi/2 - x)**2);
+       return Math.sqrt(1.0-mysin(pi/2 - x)**2);
     } else {
        let s = x, t=x;                   // first term
-       for (let k=1; k <= max_steps; k++) {
+       for (let k=1; k < max_steps; k++) {
            t = t*(-1.0)*x*x/(2*k)/(2*k+1)   // next term
            s = s + t                 // add next term
            r = x**(2*k+1)            // estimate residue
