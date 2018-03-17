@@ -375,6 +375,90 @@ class NeuralNetwork {
         return [...this.ao];
     }
 
+    back_propagate(targets, N, M) {
+        if (targets.length !== this.no) {
+            throw "Wrong number of target values";
+        }
+
+        // calculate error terms for output
+        let output_deltas = Array(this.no).fill(0);
+        let error;
+        for (let  k=0; k < this.no; k++) {
+            error = targets[k] = this.ao[k];
+            output_deltas[k] = NeuralNetwork.dsigmoid(this.ao[k]) * error;
+        }
+
+        // calculate error terms for hidden
+        let hidden_deltas = Array(this.nh).fill(0);
+        for (let j=0; j < this.nh; j++) {
+            error = Array(this.no).fill(undefined)
+                                    .map((_,k) => output_deltas[k] * this.wo[j][k])
+                                    .reduce((a,v) => a+v);
+            hidden_deltas[j] = NeuralNetwork.dsigmoid(this.ah[j]) * error;
+        }
+
+        // update output weights
+        let change;
+        for (let j=0; j < this.nh; j++) {
+            for (let k=0; k < this.no; k++) {
+                change = output_deltas[k] * this.ah[j];
+                this.wo[j][k] = this.wo[j][k] + N*change + M*this.co[j][k];
+                this.co[j][k] = change;
+            }
+        }
+
+        // update input weights
+        for (let i=0; i < this.ni; i++) {
+            for (let j=0; j < this.nh; j++) {
+                change = hidden_deltas[j] * this.ai[i];
+                this.wi[i][j] = this.wi[i][j] + N*change + M*this.ci[i][j];
+                this.ci[i][j] = change;
+            }
+        }
+
+
+        // calculate error
+        error = Array(targets.length).fill(undefined)
+                                    .map((_,k) => 0.5*(targets[k]-this.ao[k])**2)
+                                    .reduce((a,v) => a+v);
+        return error;
+    }
+
+    test(patterns) {
+        for (let p of patterns) {
+            console.log(`${p[0]} -> ${this.update(p[0])}`);
+        }
+    }
+
+    weights() {
+        console.log('Input weights:');
+        for (let i=0; i < this.ni; i++) {
+            console.log(this.wi[i]);
+        }
+        console.log('\nOutput weights:');
+        for (let j=0; j < this.nh; j++) {
+            console.log(this.wo[j]);
+        }
+    }
+
+    train(patterns, iterations=1000, N=0.5, M=0.1, check=false) {
+        // N: learning rate
+        // M: momentum factor
+        let error, inputs, targets;
+        for (let i=0; i < iterations; i++) {
+            error = 0;
+            for (let p of patterns) {
+                inputs = p[0];
+                targets = p[1];
+                this.update(inputs);
+                error = error + this.back_propagate(targets, N, M);
+            }
+            if (check && i % 100 === 0) {
+                console.log(`Error: ${error.toPrecision(14)}`);
+            }
+        }
+    }
+
     static rand(a, b) {
         // Calculate a random number where:  a <= rand < b
         return (b-a) * Math.random() + a;
@@ -389,10 +473,6 @@ class NeuralNetwork {
         // Derivative of our sigmoid function, in terms of the output
         return 1 - y**2;
     }
-
-
-
-
 }
 
 function D(f,h=1e-6) {
@@ -400,26 +480,26 @@ function D(f,h=1e-6) {
 }
 
 function DD(f,h=1e-6) {
-    return (x,F=f,H=h) => (F(x+H) - 2.0*F(x)+F(x-H))/(H*H);
+    return (x,F=f,H=h) => (F(x+H) - 2*F(x)+F(x-H))/(H*H);
 }
 
 function myexp(x,precision=1e-6,max_steps=40) {
     if (x == 0) { 
-        return 1.0; 
+        return 1; 
     } else if (x > 0) { 
-        return 1.0 / myexp(-x,precision,max_steps); 
+        return 1 / myexp(-x,precision,max_steps); 
     } else {
-        let t = 1.0, s = 1.0;
+        let t = 1.0, s = 1.0; // first term
         for (let k=0; k < max_steps; k++) {
-            t = t * x/h;
-            s = s + t;
+            t = t * x/k;    // next term
+            s = s + t;      // add next term
             if (Math.abs(t) < precision) { return s; }
         }
         throw "No convergence";
     }
 }
 
-function mysin(x,precision=1e-6,max_steps=40) {
+function mysin(x, precision=1e-6, max_steps=40) {
     if (x === 0) { 
         return 0; 
     } else if (x < 0) { 
@@ -444,7 +524,7 @@ function mysin(x,precision=1e-6,max_steps=40) {
     }
 }
 
-function mycos(x,precision=1e-6,max_steps=40) {
+function mycos(x, precision=1e-6, max_steps=40) {
     if (x == 0) {
        return 1.0
     } else if (x < 0) {
