@@ -1,17 +1,12 @@
-/****************************************************************************
+/******************************************************************
  * nlib.js
  * 
- * Fork of mdipierro's nlib.py numerical library.
- * 
- * NOTES:
- * 1) YStock isn't implemented. The API's on Google/Yahoo are
- * deprecated or disabled.
- * 
- * 2) PersistentObject, Memoize, and Canvas classes are not implemented.
- * In order to implement these, the project must run on Node.js with some
- * of additional dependencies, some of which may or may not need to be 
- * converted to JS themselves (ie matplotlib, some form of SQLite, etc.).
- */
+ * Fork and translation of mdipierro's nlib.py numerical library
+ * (https://github.com/mdipierro/nlib).
+ *
+ * CSC 331 - Undergraduate Project
+ * By: Benjamin Ferris
+ *****************************************************************/
 
 const pi = Math.PI;
 const max = Math.max
@@ -550,7 +545,7 @@ function mycos(x, precision=1e-6, max_steps=40) {
 }
 
 class Matrix {
-    constructor(rows, cols=1, fill=0.0) {
+    constructor(rows, cols=1, filler=0) {
        
     /******************************************************* 
      * Construct a zero matrix
@@ -563,15 +558,31 @@ class Matrix {
     *************************************************************/
         if (rows instanceof Array) {
             if (rows[0] instanceof Array) {
-                this.rows = Array.from(rows);
+                this.rows = rows.map(e => e);
             } else {
-                this.rows = Array.from(rows, (ele) => [ele]);
+                this.rows = rows.map(e => [e]);
             }
         } else if (typeof rows === 'number' && typeof cols === 'number') {
-            if (typeof fill === 'function') {
-                // fill me in.
+            let [xrows, xcols] = [rows.length, cols.length];
+            if (typeof filler === 'function') {
+                this.rows = Array(xrows).fill(undefined)
+                                        .map((_,r) => { 
+                                            return Array(xcols).fill(undefined)
+                                                                .map((_,c) => filler(r,c))
+                                        });
+                // both work, depends on reader. 
+                // this.rows = Array(xrows).fill(Array(xcols).fill(undefined))
+                //             .map((a,r) => {
+                //                 return a.map((_,c) => filler(r,c))
+                //             });
+            } else {
+                this.rows = Array(xrows).fill(Array(xcols).fill(filler));
             }
+        } else {
+            throw `Unable to build a matrix from ${rows}`
         }
+        this.nrows = this.rows.length;
+        this.ncols = this.rows[0].length;
     }
 }
 
@@ -1120,7 +1131,7 @@ function fit(data, fs, b=undefined, ap = 1e-6, rp = 1e-4, ns = 200, constraint =
         let na = fs.length;
         let Data = data;
         let Fs = fs;
-        function core(b, data = Data, fs = FS) {
+        function core(b, data = Data, fs = Fs) {
             let A = new Matrix()
             // unfinished
         }
@@ -1134,7 +1145,7 @@ function integrate_naive(f, a, b, n=20) {
     >>> integrate(sin, 0, 2)
     1.416118...
     ***************************************************/
-    const h = (b-a) / n;
+    const h = Math.trunc((b-a) / n);
     return h/2 * (f(a) + f(b)) + h * (Array.from(new Array(n-1), (_,i) => f(a+h*i))
                                         .reduce((ac,v) => ac + v));
 }
@@ -1175,7 +1186,6 @@ class QuadratureIntegrator {
         let h = (b-a)/(order-1);
         return (b-a) * Array.from(new Array(order), (_,i) => w[i][0] * f(a + i*h))
                             .reduce((ac,v) => av + v);
-
    }
 }
 
