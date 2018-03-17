@@ -4,7 +4,7 @@
  * Fork and translation of mdipierro's nlib.py numerical library
  * (https://github.com/mdipierro/nlib).
  *
- * CSC 331 - Undergraduate Project
+ * CSC 331 - Undergraduate Project - Winter, 2018
  * By: Benjamin Ferris
  *****************************************************************/
 
@@ -135,7 +135,7 @@ class PrimVertex {
     }
 }
 
-// fix
+// No heap implemented
 function Prim(graph, start) {
     let [vertices, links] = graph;
     let P = vertices.map(i => new PrimVertex(i, links));
@@ -158,17 +158,14 @@ function Prim(graph, start) {
     // need return, fix
 }
 
-// fix
 function Dijkstra(graph, start) {
 
 }
 
-// fix
 function encode_huffman(input) {
 
 }
 
-// fix
 function decode_huffman(keys, encoded) {
 
 }
@@ -230,6 +227,7 @@ function continuum_knapsack(a,b,c) {
 
 class Cluster {
     constructor(points, metric, weights = undefined) {
+        // need separate function for later call
         init(points, metric, weights);
     }
 
@@ -252,7 +250,6 @@ class Cluster {
         }
         this.d.sort((a,b) => a[0] - b[0]);
         this.dd = [];
-
     }
 
     parent(i) {
@@ -312,7 +309,6 @@ class Cluster {
     }
 }
 
-// fix
 class NeuralNetwork {
     /***********************************************************
     Back-Propagation Neural Networks
@@ -338,7 +334,7 @@ class NeuralNetwork {
         this.wo = new Matrix(this.nh, this.no, (r,c) => NeuralNetwork.rand(-2,2));
 
         // last change in weights for momentum
-        this.co = new Matrix(this.ni, this.nh);
+        this.ci = new Matrix(this.ni, this.nh);
         this.co = new Matrix(this.nh, this.no);
     }
 
@@ -637,7 +633,7 @@ function condition_number(f, x=null, h=1e-6) {
     }
 }
 
-// fix me
+// Need a complex number library - no native support in JS... =(
 function exp(x, ap=1e-6, rp=1e-4, ns=40) {
     if (x instanceof Matrix) {
         let t = Matrix.identity(x.ncols);
@@ -693,7 +689,6 @@ function is_positive_definite(A) {
     }
 }
 
-// fix me
 function Markowitz(mu, A, r_free) {
     // Assess Markowitz risk/return.
     // Example:
