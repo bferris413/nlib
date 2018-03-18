@@ -30,13 +30,12 @@ function breadth_first_search(graph, start) {
     let blacknodes = [];
     let graynodes = [start];
     let neighbors = Array(vertices.length).fill([]);
-
-    for (let link in links) { 
+    for (let link of links) { 
         neighbors[link[0]].concat(link[1]); 
     }
     while (graynodes) {
         let current = graynodes.pop();
-        for (let neighbor in neighbors[current]) {
+        for (let neighbor of neighbors[current]) {
             if (! (blacknodes.includes(neighbor) || graynodes.includes(neighbor))) {
                 graynodes.splice(0,0,neighbor);
             }
@@ -52,12 +51,12 @@ function depth_first_search(graph, start) {
     let graynodes = [start];
     let neighbors = Array(vertices.length).fill([]);
 
-    for (let link in links) {
+    for (let link of links) {
         neighbors[link[0]].concat(link[1]); 
     }
     while (graynodes) {
         let current = graynodes.pop();
-        for (let neighbor in neighbors[current]) {
+        for (let neighbor of neighbors[current]) {
             if (! (blacknodes.includes(neighbor) || graynodes.includes(neighbor))) {
                 graynodes.push(neighbor);
             }
@@ -207,7 +206,6 @@ function needleman_wunsch(a, b, p=0.97) {
 }
 
 function continuum_knapsack(a,b,c) {
-    // need 'integer division' - floating point gives NaN
     let table = Array(a.length).fill(0)
                                 .map((_,i) => [Math.floor(a[i]/b[i]), i]);
     table.sort(([l,m], [n,o]) => l-n);
@@ -215,8 +213,6 @@ function continuum_knapsack(a,b,c) {
     let f = 0;
     let quantity;
     table.forEach(([y,i]) => {
-        // integer division? floating point? 
-        // results vary depending on input - buggy
         quantity = Math.min(c/b[i], 1);
         x.push([i, quantity]);
         c = c - b[i]*quantity;
@@ -582,7 +578,6 @@ class Matrix {
     }
 }
 
-// skip to 975
 function is_almost_symmetric(A, ap=1e-6, rp=1e-4) {
     if (A.nrows != A.ncols) { 
         return false; 
@@ -1050,7 +1045,7 @@ function optimize_newton_multi(f, x, ap = 1e-6, rp = 1e-4, ns = 20) {
     Returns x, which maximizes of minimizes f(x)=0, as a list
     ************************************************************/
     x = new Matrix(Array.from(x));
-    for (let k=o; k < n; k++) {
+    for (let k=0; k < n; k++) {
         let [grad, H] = [gradient(f, x.flatten()), hessian(f, x.flatten())];
         if (norm(H) < ap) {
             throw "Unstable solution";
