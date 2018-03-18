@@ -12,6 +12,16 @@ const pi = Math.PI;
 const max = Math.max
 const abs = Math.abs
 
+function div(a, b) {
+    if (Number.isInteger(a) && Number,isInteger(b)) {
+        return Math.trunc(a/b); // simulate integer division
+    } else if (typeof a === 'number' && typeof b === 'number') {
+        return a/b;
+    } else {
+        throw "Unsupported types";
+    }
+}
+
 function timef(f, ns=1000, dt=60) {
     let t = Date.now();
     let t0 = t;
@@ -207,7 +217,7 @@ function needleman_wunsch(a, b, p=0.97) {
 
 function continuum_knapsack(a,b,c) {
     let table = Array(a.length).fill(0)
-                                .map((_,i) => [Math.floor(a[i]/b[i]), i]);
+                                .map((_,i) => [Math.trunc(a[i]/b[i]), i]);
     table.sort(([l,m], [n,o]) => l-n);
     table.reverse();
     let f = 0;
@@ -643,7 +653,7 @@ function condition_number(f, x=null, h=1e-6) {
     }
 }
 
-// Need a complex number library - no native support in JS... =(
+// Need a complex number library
 function exp(x, ap=1e-6, rp=1e-4, ns=40) {
     if (x instanceof Matrix) {
         let t = Matrix.identity(x.ncols);
@@ -752,7 +762,7 @@ function fit_least_squares(points, f) {
     let b = new Matrix(points.length);
 
     for (let i=0; i < A.nrows; i++) {
-        let weight = points[i] > 2 ? 1.0 / points : 1.0;
+        let weight = points[i] > 2 ? 1 / points : 1;
         b[i][0] = weight * points[i][1];
         for (let j=0; j < A.ncols; j++) {
             A[i][j] = weight * f[j](points[i][0]);
