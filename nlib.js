@@ -576,6 +576,21 @@ class Matrix {
         this.nrows = this.rows.length;
         this.ncols = this.rows[0].length;
     }
+    static add(A, B) {
+        let rows = []
+        let col;
+        if (A.nrows !== B.nrows || A.ncols != B.ncols) {
+            throw "Incompatible dimensions";
+        }
+        for (let i=0; i < A.nrows; i++) {
+            col = []
+            for (let j=0; j < A.ncols; j++) {
+                col.push(A[i][j] + B[i][j]);
+            }
+            rows.push(col);
+        }
+        return new Matrix(rows);
+    }
 }
 
 function is_almost_symmetric(A, ap=1e-6, rp=1e-4) {
@@ -585,8 +600,8 @@ function is_almost_symmetric(A, ap=1e-6, rp=1e-4) {
     let delta = 0.0;
     for (let r=0; r < A.nrows; r++) {
         for (let c=0; c < r; c++) {
-            delta = abs(A[r][c] - A[c][r]);
-            if (delta > ap && delta > max(abs(A[r][c], abs(A[c][r]))) * rp) {
+            delta = abs(A.rows[r][c] - A.rows[c][r]);
+            if (delta > ap && delta > max(abs(A.rows[r][c], abs(A.rows[c][r]))) * rp) {
                 return false;
             } 
         }
@@ -597,8 +612,8 @@ function is_almost_symmetric(A, ap=1e-6, rp=1e-4) {
 function is_almost_zero(A, ap=1e-6, rp=1e-4) {
     for (let r=0; r < A.nrows; r++) {
         for (let c=0; c < A.ncols; c++) {
-            delta = abs(A[r][c] - A[c][r]);
-            if (delta > ap && delta > max(abs(A[r][c], abs(A[c][r]))) * rp) {
+            delta = abs(A.rows[r][c] - A.rows[c][r]);
+            if (delta > ap && delta > max(abs(A.rows[r][c], abs(A.rows[c][r]))) * rp) {
                 return false;
             } 
         }
@@ -649,24 +664,24 @@ function Cholesky(A) {
     }
     let L = Object.assign({}, A);
     for (let k=0; k < L.ncols; k++) {
-        if (L[k][k] <= 0) {
+        if (L.rows[k][k] <= 0) {
             throw "Not positive definite";
         }
-        L[k][k] = Math.sqrt(L[k][k]);
-        let p = L[k][k];
+        L.rows[k][k] = Math.sqrt(L.rows[k][k]);
+        let p = L.rows[k][k];
         for (let i=k+1; i < L.nrows; i++) {
-            L[i][k] /= p;
+            L.rows[i][k] /= p;
         }
         for (let j=k+1; j < L.nrows; j++) {
-            p = L[j][k];
+            p = L.rows[j][k];
             for (let i=k+1; i < L.nrows; i++) {
-                L[i][j] -= p * L[i][k];
+                L.rows[i][j] -= p * L.rows[i][k];
             }
         }
     }
     for (let i=0; i < L.nrows; i++) {
         for (let j=i+1; j < L.ncols; j++) {
-            L[i][j] = 0;
+            L.rows[i][j] = 0;
         }
     }
     return L;
@@ -699,7 +714,7 @@ function Markowitz(mu, A, r_free) {
     // 0.113915... 0.186747...
     // 
     let x = Matrix(new Array(A.nrows).fill([0]));
-    x = (1/A) * (mu - r_free); // <--- rdiv(A, x)
+    x = (1/A) * (mu - r_free); // <--- rdiv(A, x), need support
     x = x / (Array.from(new Array(x.nrows), (_,r) => x[r][0])
                     .reduce((ac,v) => ac+v));
 
@@ -1425,41 +1440,9 @@ class MCEngine {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/**********************************************************************************
+/*****************************************************
  * Timing comparison of functions creating new arrays.
- * ********************************************************************************/
+ * ***************************************************/
 function timing() {
 
     let A = []
